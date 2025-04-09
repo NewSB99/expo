@@ -1,29 +1,181 @@
----
-title: Next steps
-description: Develop, review, and submit your project.
-hideTOC: true
----
+import { useState } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements } from '@stripe/react-stripe-js';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';  // Google Maps alternative for React
+import { Socket } from 'socket.io-client'; // Chat en temps réel
 
-import { Terminal } from '~/ui/components/Snippet';
+const stripePromise = loadStripe('your-stripe-public-key');
 
-Here are next steps to continue building your app:
+// Setup Firebase for Push Notifications
+import firebase from 'firebase/app';
+import 'firebase/messaging';
 
-### Reset your project
+const messaging = firebase.messaging();
 
-You can remove the boilerplate code and start fresh with a new project. Run the following command to reset your project:
+// Simulated chat and vehicle data
+const VehicleCard = ({ vehicle, onReserve, onFavorite, chats, currentMessages, onSendMessage }) => (
+  <Card className="p-4 shadow-lg rounded-2xl">
+    <CardContent>
+      <h2 className="text-xl font-semibold">{vehicle.model}</h2>
+      {vehicle.images && vehicle.images.length > 0 && (
+        <div className="flex space-x-2 overflow-x-auto mt-2">
+          {vehicle.images.map((img, index) => (
+            <img key={index} src={img} alt={`${vehicle.model} ${index + 1}`} className="w-32 h-32 object-cover rounded" />
+          ))}
+        </div>
+      )}
+      <p>Prix: {vehicle.price} CHF / jour</p>
+      <p>Conditions: {vehicle.conditions}</p>
+      <p>Localisation: {vehicle.location}</p>
 
-<Terminal cmd={['$ npm run reset-project']} />
+      <div className="mt-4">
+        <Button onClick={() => onFavorite(vehicle)} className="bg-yellow-500">Ajouter aux favoris</Button>
+        <Button onClick={() => onReserve(vehicle)} className="mt-2 w-full">
+          {vehicle.available ? 'Réserver' : 'Indisponible'}
+        </Button>
+      </div>
 
-This command will move the existing files in **app** to **app-example**, then create a new **app** directory with a new **index.tsx** file.
+      <div className="mt-4 p-2 border rounded-lg bg-gray-50">
+        <h3 className="text-lg font-semibold">Discussion avec le loueur</h3>
+        <div className="h-32 overflow-y-auto border-b mb-2 p-2">
+          {(chats[vehicle.id] || []).map((msg, index) => (
+            <p key={index} className="text-sm bg-gray-200 p-1 rounded mb-1">{msg}</p>
+          ))}
+        </div>
+        <Input 
+          type="text" 
+          placeholder="Envoyer un message..." 
+          value={currentMessages[vehicle.id] || ''} 
+          onChange={(e) => onSendMessage(vehicle.id, e.target.value)} 
+          className="mt-1"
+        />
+        <Button onClick={() => onSendMessage(vehicle.id)} className="mt-2">Envoyer</Button>
+      </div>
+    </CardContent>
+  </Card>
+);
 
-### Develop, review, and deploy
+export default function MoovClientApp() {
+  const [vehicles, setVehicles] = useState([
+    { id: 1, model: 'Tesla Model 3', price: 100, available: true, conditions: 'Permis valide', location: '1201 Genève', owner: 'John Doe', ownerPhoto: 'johndoe.jpg', images: ['tesla1.jpg', 'tesla2.jpg', 'tesla3.jpg'] },
+    { id: 2, model: 'BMW X5', price: 120, available: true, conditions: 'Âge minimum 25 ans', location: '1003 Lausanne', owner: 'Jane Smith', ownerPhoto: 'janesmith.jpg', images: ['bmw1.jpg', 'bmw2.jpg'] }
+  ]);
+  const [chats, setChats] = useState({});
+  const [currentMessages, setCurrentMessages] = useState({});
+  const [selectedVehicle, setSelectedVehicle] = useState(null);
+  const [language, setLanguage] = useState('fr');
+  const [favoriteVehicles, setFavoriteVehicles] = useState([]);
 
-Learn how to develop by reading the docs in the Develop section. You'll learn how to create [UI elements](/develop/user-interface/splash-screen-and-app-icon/), add [unit tests](/develop/unit-testing/), include [native modules](/config-plugins/introduction/), and more.
+  const handleReservation = (vehicle) => {
+    setSelectedVehicle(vehicle);
+  };
 
-Once you've developed your app, you can share it with your teammates for [review](/review/overview).
+  const handleFavorite = (vehicle) => {
+    setFavoriteVehicles([...favoriteVehicles, vehicle]);
+  };
 
-Finally, you can [build](/deploy/build-project/) and [submit](/deploy/submit-to-app-stores/) your project to the app stores.
+  const handleSendMessage = (vehicleId, message) => {
+    if (message) {
+      setChats({
+        ...chats,
+        [vehicleId]: [...(chats[vehicleId] || []), message]
+      });
+      setCurrentMessages({ ...currentMessages, [vehicleId]: '' });
+    }
+  };
 
-### Step-by-step guide
+  const handleConfirmReservation = () => {
+    // Handle reservation logic
+  };
 
-For a guided, step-by-step walkthrough of building an app with Expo from start to finish, check out the [tutorial](/tutorial/introduction/).
+  const conditions = {
+    fr: [
+      "MOOV est une plateforme de mise en relation entre particuliers pour la location de véhicules.",
+      "Les utilisateurs sont responsables de vérifier la validité des documents.",
+      "Le paiement se fait via Cash ou Twint.",
+      "MOOV ne fournit aucun véhicule, assurance, ni garantie.",
+      "En cas d’accident ou de litige, MOOV décline toute responsabilité.",
+      "Le respect des lois et règlements est à la charge des utilisateurs.",
+      "Toute fraude ou fausse déclaration entraînera la suppression du compte et des poursuites judiciaires."
+    ],
+    en: [
+      "MOOV is a platform connecting individuals for vehicle rentals.",
+      "Users are responsible for verifying the validity of the documents.",
+      "Payment is made via Cash or Twint.",
+      "MOOV does not provide any vehicles, insurance, or guarantees.",
+      "In case of accident or dispute, MOOV declines all responsibility.",
+      "Users are responsible for complying with laws and regulations.",
+      "Any fraud or false declaration will result in account deletion and legal prosecution."
+    ]
+  };
+
+  return (
+    <Elements stripe={stripePromise}>
+      <div className="p-4 space-y-4">
+        <h1 className="text-2xl font-bold">MOOV - Location de Véhicules</h1>
+        <div className="bg-gray-100 p-4 rounded-lg shadow">
+          <h2 className="text-xl font-semibold mb-2">{language === 'fr' ? "Conditions Générales d'Utilisation" : "Terms and Conditions of Use"}</h2>
+          <ul className="list-disc list-inside text-sm space-y-1">
+            {conditions[language].map((item, index) => (
+              <li key={index}>{item}</li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {vehicles.map(vehicle => (
+            <VehicleCard 
+              key={vehicle.id}
+              vehicle={vehicle}
+              onReserve={handleReservation}
+              onFavorite={handleFavorite}
+              chats={chats}
+              currentMessages={currentMessages}
+              onSendMessage={handleSendMessage}
+            />
+          ))}
+        </div>
+
+        {/* Carte Google Maps pour localisation */}
+        <MapContainer center={[46.2044, 6.1432]} zoom={13} style={{ height: "300px", width: "100%" }}>
+          <TileLayer
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          />
+          {vehicles.map(vehicle => (
+            <Marker key={vehicle.id} position={[46.2044, 6.1432]}>
+              <Popup>{vehicle.model}</Popup>
+            </Marker>
+          ))}
+        </MapContainer>
+      </div>
+
+      {selectedVehicle && (
+        <Dialog open={true} onOpenChange={() => setSelectedVehicle(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Choisissez votre mode de paiement</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-2">
+              <div>
+                <label className="block mb-1 font-medium">Photo de pièce d'identité</label>
+                <Input type="file" accept="image/*" />
+              </div>
+              <div>
+                <label className="block mb-1 font-medium mt-2">Photo du permis de conduire</label>
+                <Input type="file" accept="image/*" />
+              </div>
+              <Button onClick={handleConfirmReservation} className="w-full bg-green-500 text-white mt-4">Cash</Button>
+              <Button onClick={handleConfirmReservation} className="w-full bg-blue-500 text-white">Twint</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+    </Elements>
+  );
+}
+
