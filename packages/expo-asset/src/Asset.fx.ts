@@ -12,6 +12,9 @@ if (IS_ENV_WITH_LOCAL_ASSETS) {
       // Bundler is using the hashAssetFiles plugin if and only if the fileHashes property exists
       if (resolver.asset.fileHashes) {
         const asset = Asset.fromMetadata(resolver.asset);
+        if (asset.downloaded && asset.localUri?.startsWith('file:///android_res/')) {
+          return resolver.resourceIdentifierWithoutScale();
+        }
         return resolver.fromSource(asset.downloaded ? asset.localUri! : asset.uri);
       } else {
         return resolver.defaultAsset();
