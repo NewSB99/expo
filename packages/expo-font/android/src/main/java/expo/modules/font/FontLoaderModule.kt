@@ -4,13 +4,13 @@ package expo.modules.font
 
 import android.content.Context
 import android.graphics.Typeface
-import android.net.Uri
 import com.facebook.react.common.assets.ReactFontManager
 import expo.modules.kotlin.exception.CodedException
 import expo.modules.kotlin.exception.Exceptions
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import java.io.File
+import androidx.core.net.toUri
 
 private const val ASSET_SCHEME = "asset://"
 
@@ -35,16 +35,22 @@ open class FontLoaderModule : Module() {
       val context = appContext.reactContext ?: throw Exceptions.ReactContextLost()
 
       // TODO(nikki): make sure path is in experience's scope
-      val typeface: Typeface = if (localUri.startsWith(ASSET_SCHEME)) {
-        Typeface.createFromAsset(
-          context.assets, // Also remove the leading slash.
-          localUri.substring(ASSET_SCHEME.length + 1)
-        )
-      } else {
-        val file = Uri.parse(localUri).path?.let { File(it) }
-          ?: throw FileNotFoundException(localUri)
+      val typeface: Typeface = when {
+        localUri.startsWith(ASSET_SCHEME) -> {
+          Typeface.createFromAsset(
+            context.assets, // Also remove the leading slash.
+            localUri.substring(ASSET_SCHEME.length + 1)
+          )
+        }
+        localUri.startsWith(ANDROID_EMBEDDED_URL_BASE_RESOURCE) -> {
+          createTypefaceFromResource(context, localUri) ?: throw FileNotFoundException(localUri)
+        }
+        else -> {
+          val file = localUri.toUri().path?.let { File(it) }
+            ?: throw FileNotFoundException(localUri)
 
-        Typeface.createFromFile(file)
+          Typeface.createFromFile(file)
+        }
       }
 
       ReactFontManager.getInstance().setTypeface(fontFamilyName, Typeface.NORMAL, typeface)
