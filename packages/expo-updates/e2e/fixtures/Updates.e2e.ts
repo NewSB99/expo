@@ -807,6 +807,11 @@ describe('Asset deletion recovery tests', () => {
   });
 
   it('embedded assets deleted from internal storage should be re-copied', async () => {
+    if (platform === 'android') {
+      // Skip the test because we don't copy embedded assets on Android
+      return;
+    }
+
     // Simplest scenario; only one update (embedded) is loaded, then assets are cleared from
     // internal storage. The app is then relaunched with the same embedded update.
     // DatabaseLauncher should copy all the missing assets and run the update as normal.
@@ -862,6 +867,11 @@ describe('Asset deletion recovery tests', () => {
   });
 
   it('embedded assets deleted from internal storage should be re-copied from a new embedded update', async () => {
+    if (platform === 'android') {
+      // Skip the test because we don't copy embedded assets on Android
+      return;
+    }
+
     // This test ensures that when trying to launch a NEW update that includes some OLD assets we
     // already have (according to SQLite), even if those assets are actually missing from disk
     // (but included in the embedded update) DatabaseLauncher can recover.
